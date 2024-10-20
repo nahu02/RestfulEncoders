@@ -562,3 +562,4 @@ obj/
 
 .config/
 docker_build.sh
+.env

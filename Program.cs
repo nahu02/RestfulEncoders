@@ -1,11 +1,24 @@
 using System.Reflection;
 using Microsoft.OpenApi.Models;
+using dotenv.net;
 
 internal class Program
 {
     private static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        DotEnv.Load();
+        var config =
+            new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", true)
+                .AddEnvironmentVariables()
+                .Build();
+
+        builder.Services.AddSingleton<IConfiguration>(config);
+
+        builder.Logging.AddConsole();
 
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddControllers();

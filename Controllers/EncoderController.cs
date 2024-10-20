@@ -8,7 +8,14 @@ namespace MyWebApi.Controllers
     [ApiController]
     public class EncoderController : ControllerBase
     {
-        private readonly EncoderFactory ef = new EncoderFactory();
+        private readonly EncoderFactory ef;
+        private ILogger<EncoderController> _logger;
+
+        public EncoderController(ILogger<EncoderController> logger) : base()
+        {
+            _logger = logger;
+            ef = new EncoderFactory();
+        }
 
         /// <summary>
         /// Retrieves a list of available encoders.
@@ -52,6 +59,7 @@ namespace MyWebApi.Controllers
         /// <returns>The description of the specified encoder</returns>
         /// <response code="200">Returns the description of the encoder</response>
         /// <response code="404">If the specified encoder is not found</response>
+        /// <response code="400">If ran into an encoder configuration issue</response>
         [HttpGet("{encoderName}")]
         public ActionResult<string> GetEncoderDescription(string encoderName)
         {
@@ -63,6 +71,11 @@ namespace MyWebApi.Controllers
             catch (EncoderHub.Exceptions.EncoderNotFoundException)
             {
                 return NotFound($"Encoder '{encoderName}' not found");
+            }
+            catch (EncoderHub.Exceptions.EncoderConfigurationException e)
+            {
+                _logger.LogError(e, "Encoder '{encoderName}' could not be configured", encoderName);
+                return BadRequest($"Encoder '{encoderName}' could not be configured. {e.Message}");
             }
         }
 
@@ -87,32 +100,32 @@ namespace MyWebApi.Controllers
         /// <returns>The encoded message</returns>
         /// <response code="200">Returns the successfully encoded message</response>
         /// <response code="404">If the specified encoder is not found</response>
-        /// <response code="400">If there's an error during the encoding process</response>
+        /// <response code="400">If there's an error during the encoding process, or during the encoder's configuration</response>
         [HttpPost("{encoderName}")]
         public async Task<ActionResult<string>> EncodeMessage(
             string encoderName,
             [FromBody] string message
         )
         {
-            IEncoder encoder = null;
-
             try
             {
-                encoder = ef.GetEncoder(encoderName);
+                IEncoder encoder = ef.GetEncoder(encoderName);
+                string encodedMessage = await encoder!.Encode(message);
+                return Ok(encodedMessage);
             }
             catch (EncoderHub.Exceptions.EncoderNotFoundException)
             {
                 return NotFound($"Encoder '{encoderName}' not found");
             }
-
-            try
+            catch (EncoderHub.Exceptions.EncodingException e)
             {
-                string encodedMessage = await encoder!.Encode(message);
-                return Ok(encodedMessage);
+                _logger.LogError(e, "There was an error with encoder '{encoderName}'", encoderName);
+                return BadRequest($"Error encoding message: {e.Message}");
             }
-            catch (EncoderHub.Exceptions.EncodingException ex)
+            catch (EncoderHub.Exceptions.EncoderConfigurationException e)
             {
-                return BadRequest($"Error encoding message: {ex.Message}");
+                _logger.LogError(e, "Encoder '{encoderName}' could not be configured", encoderName);
+                return BadRequest($"Encoder '{encoderName}' could not be configured. {e.Message}");
             }
         }
     }
