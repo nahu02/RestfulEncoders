@@ -32,4 +32,5 @@ RUN dotnet publish "RestfulEncoders.csproj" -c $configuration -o /app/publish /p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY .env .
 ENTRYPOINT ["dotnet", "RestfulEncoders.dll"]
