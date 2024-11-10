@@ -32,5 +32,7 @@ RUN dotnet publish "RestfulEncoders.csproj" -c $configuration -o /app/publish /p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-COPY .env .
+# Check if .env file exists before copying it, so the image won't fail if no .env file is present
+RUN [ -f ".env" ] && COPY .env .
+
 ENTRYPOINT ["dotnet", "RestfulEncoders.dll"]
